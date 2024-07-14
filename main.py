@@ -79,4 +79,4 @@ async def delete_memory(memory_id: str, user_id: str = Depends(get_user_id)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
