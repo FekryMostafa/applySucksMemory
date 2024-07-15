@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import os
-from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
+from qdrant_client.http import models
 from langchain_together import TogetherEmbeddings
 from dotenv import load_dotenv
 
@@ -22,7 +22,7 @@ app.add_middleware(
 
 # Qdrant setup
 client = QdrantClient(
-    os.getenv("QDRANT_LINK"),
+    url=os.getenv("QDRANT_LINK"),
     api_key=os.getenv("QDRANT_API_KEY")
 )
 embeddings = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
@@ -36,38 +36,43 @@ class MemoryResponse(BaseModel):
 
 @app.get("/memories/{user_id}", response_model=List[MemoryResponse])
 async def get_memories(user_id: str):
-    print(user_id)
-    collection_name = str(user_id)
-    vector_store = Qdrant(
-        client=client,
+    print(f"Fetching memories for user: {user_id}")
+    collection_name = "memories"  # Use a fixed collection name
+    search_result = client.scroll(
         collection_name=collection_name,
-        embeddings=embeddings,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.userID",
+                    match=models.MatchValue(value=user_id)
+                )
+            ]
+        ),
+        limit=100
     )
     
-    results = vector_store.similarity_search("", k=100)  # Adjust k as needed
-    
     memories = []
-    for doc in results:
-        content_parts = doc.page_content.split("\n", 1)
-        question = content_parts[0].replace("Question: ", "") if len(content_parts) > 0 else ""
-        answer = content_parts[1].replace("Answer: ", "") if len(content_parts) > 1 else ""
+    for point in search_result[0]:
+        payload = point.payload
         memories.append(MemoryResponse(
-            id=str(doc.metadata.get('_id', '')),
-            question=question,
-            answer=answer,
-            company=doc.metadata.get('company', ""),
-            date=doc.metadata.get('date', "")
+            id=str(point.id),
+            question=payload.get('question', ''),
+            answer=payload.get('answer', ''),
+            company=payload.get('company', ''),
+            date=payload.get('date', '')
         ))
-    print(memories)
+    
+    print(f"Found {len(memories)} memories")
     return memories
 
 @app.delete("/memories/{user_id}/{memory_id}")
 async def delete_memory(user_id: str, memory_id: str):
-    collection_name = str(user_id)
+    collection_name = "memories"  # Use a fixed collection name
     try:
         client.delete(
             collection_name=collection_name,
-            points_selector=[memory_id]
+            points_selector=models.PointIdsList(points=[memory_id]),
+            wait=True
         )
         return {"message": "Memory deleted successfully"}
     except Exception as e:
