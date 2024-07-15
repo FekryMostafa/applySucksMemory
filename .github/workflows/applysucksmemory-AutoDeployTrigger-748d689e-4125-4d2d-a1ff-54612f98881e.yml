@@ -33,5 +33,5 @@ jobs:
       - name: Restart Azure Container App revision
         run: |
           az containerapp revision restart \
-            --revision applysucksmemory--pncow67 \
+            --revision applysucksmemory--ho23rhi \
             --resource-group applysucksbackendapi
