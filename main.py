@@ -50,7 +50,7 @@ async def get_memories(user_id: str):
         ),
         limit=100
     )
-    
+    print(search_result)
     memories = []
     for point in search_result[0]:
         payload = point.payload
@@ -63,6 +63,7 @@ async def get_memories(user_id: str):
         ))
     
     print(f"Found {len(memories)} memories")
+    print(memories)
     return memories
 
 @app.delete("/memories/{user_id}/{memory_id}")
