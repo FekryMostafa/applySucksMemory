@@ -58,8 +58,8 @@ async def get_memories(user_id: str):
             company=doc.metadata.get('company', ""),
             date=doc.metadata.get('date', "")
         ))
-        
-        return memories
+    print(memories)
+    return memories
 
 @app.delete("/memories/{user_id}/{memory_id}")
 async def delete_memory(user_id: str, memory_id: str):
