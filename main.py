@@ -1,14 +1,12 @@
-# main.py
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import os
 from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
 from langchain_together import TogetherEmbeddings
 from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -16,10 +14,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Qdrant setup
@@ -28,9 +26,7 @@ client = QdrantClient(
     api_key=os.getenv("QDRANT_API_KEY")
 )
 embeddings = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
-EMBEDDING_DIMENSION = 768
 
-# Pydantic model for memory response
 class MemoryResponse(BaseModel):
     id: str
     question: str
@@ -38,14 +34,8 @@ class MemoryResponse(BaseModel):
     company: str
     date: str
 
-# Function to get user_id from header
-async def get_user_id(user_id: Optional[str] = Header(None)):
-    if user_id is None:
-        raise HTTPException(status_code=400, detail="User ID is required")
-    return user_id
-
-@app.get("/memories/", response_model=List[MemoryResponse])
-async def get_memories(user_id: str = Depends(get_user_id)):
+@app.get("/memories/{user_id}", response_model=List[MemoryResponse])
+async def get_memories(user_id: str):
     collection_name = str(user_id)
     try:
         vector_store = Qdrant(
@@ -54,7 +44,6 @@ async def get_memories(user_id: str = Depends(get_user_id)):
             embeddings=embeddings,
         )
         
-        # Fetch all documents for the user
         results = vector_store.similarity_search("", k=100)  # Adjust k as needed
         
         memories = []
@@ -74,8 +63,8 @@ async def get_memories(user_id: str = Depends(get_user_id)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-@app.delete("/memories/{memory_id}")
-async def delete_memory(memory_id: str, user_id: str = Depends(get_user_id)):
+@app.delete("/memories/{user_id}/{memory_id}")
+async def delete_memory(user_id: str, memory_id: str):
     collection_name = str(user_id)
     try:
         client.delete(
