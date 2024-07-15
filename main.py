@@ -8,10 +8,19 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 from langchain_together import TogetherEmbeddings
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Qdrant setup
 client = QdrantClient(
