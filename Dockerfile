@@ -1,9 +1,5 @@
 FROM --platform=linux/amd64 python:3.11-bookworm
 
-# Install Playwright and its dependencies
-RUN pip install playwright==1.45.0 && \
-    playwright install --with-deps
-
 # Set the working directory in the container
 WORKDIR /app
 

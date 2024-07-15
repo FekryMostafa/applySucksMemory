@@ -1,47 +1,37 @@
 name: Trigger auto deployment for applysucksmemory
-
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
-    branches: 
-      [ main ]
-    paths:
-    - '**'
-    - '.github/workflows/applysucksmemory-AutoDeployTrigger-748d689e-4125-4d2d-a1ff-54612f98881e.yml'
-
-  # Allow manual trigger 
-  workflow_dispatch:      
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
-
+    permissions:
+      id-token: write
+      contents: read
     steps:
-      - name: Checkout to the branch
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Azure Login
+      - name: Log in to Azure CLI
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.APPLYSUCKSMEMORY_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.APPLYSUCKSMEMORY_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.APPLYSUCKSMEMORY_AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push container image to registry
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          appSourcePath: ${{ github.workspace }} 
-          registryUrl: applysucksmemory.azurecr.io
-          registryUsername: ${{ secrets.APPLYSUCKSMEMORY_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.APPLYSUCKSMEMORY_REGISTRY_PASSWORD }}
-          containerAppName: applysucksmemory
-          resourceGroup: applysucksbackendapi
-          imageToBuild: applysucksmemory.azurecr.io/applysucksmemory:${{ github.sha }}
-          _buildArgumentsKey_: |
-            _buildArgumentsValues_
+      - name: Build image for specified platform
+        run: |
+          docker build --platform linux/amd64 \
+                        -t applysucksmemory.azurecr.io/applysucksmemory:latest \
+                        -f Dockerfile .
+      - name: Push image to ACR
+        run: |
+          az acr login --name applysucksmemory
+          docker push applysucksmemory.azurecr.io/applysucksmemory:latest
 
-
+      - name: Restart Azure Container App revision
+        run: |
+          az containerapp revision restart \
+            --revision applysucksmemory--pncow67 \
+            --resource-group applysucksbackendapi
