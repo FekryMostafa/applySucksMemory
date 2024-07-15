@@ -38,6 +38,7 @@ class MemoryResponse(BaseModel):
 async def get_memories(user_id: str):
     print(f"Fetching memories for user: {user_id}")
     collection_name = "memories"  # Use a fixed collection name
+    
     search_result = client.scroll(
         collection_name=collection_name,
         scroll_filter=models.Filter(
@@ -50,20 +51,27 @@ async def get_memories(user_id: str):
         ),
         limit=100
     )
-    print(search_result)
+    
     memories = []
     for point in search_result[0]:
         payload = point.payload
+        metadata = payload.get('metadata', {})
+        page_content = payload.get('page_content', '')
+        
+        # Split page_content into question and answer
+        content_parts = page_content.split("\n", 1)
+        question = content_parts[0].replace("Question: ", "") if len(content_parts) > 0 else ""
+        answer = content_parts[1].replace("Answer: ", "") if len(content_parts) > 1 else ""
+        
         memories.append(MemoryResponse(
             id=str(point.id),
-            question=payload.get('question', ''),
-            answer=payload.get('answer', ''),
-            company=payload.get('company', ''),
-            date=payload.get('date', '')
+            question=question,
+            answer=answer,
+            company=metadata.get('company', ''),
+            date=metadata.get('date', '')
         ))
     
     print(f"Found {len(memories)} memories")
-    print(memories)
     return memories
 
 @app.delete("/memories/{user_id}/{memory_id}")
