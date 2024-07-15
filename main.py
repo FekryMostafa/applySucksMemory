@@ -36,32 +36,30 @@ class MemoryResponse(BaseModel):
 
 @app.get("/memories/{user_id}", response_model=List[MemoryResponse])
 async def get_memories(user_id: str):
+    print(user_id)
     collection_name = str(user_id)
-    try:
-        vector_store = Qdrant(
-            client=client,
-            collection_name=collection_name,
-            embeddings=embeddings,
-        )
-        
-        results = vector_store.similarity_search("", k=100)  # Adjust k as needed
-        
-        memories = []
-        for doc in results:
-            content_parts = doc.page_content.split("\n", 1)
-            question = content_parts[0].replace("Question: ", "") if len(content_parts) > 0 else ""
-            answer = content_parts[1].replace("Answer: ", "") if len(content_parts) > 1 else ""
-            memories.append(MemoryResponse(
-                id=str(doc.metadata.get('_id', '')),
-                question=question,
-                answer=answer,
-                company=doc.metadata.get('company', ""),
-                date=doc.metadata.get('date', "")
-            ))
+    vector_store = Qdrant(
+        client=client,
+        collection_name=collection_name,
+        embeddings=embeddings,
+    )
+    
+    results = vector_store.similarity_search("", k=100)  # Adjust k as needed
+    
+    memories = []
+    for doc in results:
+        content_parts = doc.page_content.split("\n", 1)
+        question = content_parts[0].replace("Question: ", "") if len(content_parts) > 0 else ""
+        answer = content_parts[1].replace("Answer: ", "") if len(content_parts) > 1 else ""
+        memories.append(MemoryResponse(
+            id=str(doc.metadata.get('_id', '')),
+            question=question,
+            answer=answer,
+            company=doc.metadata.get('company', ""),
+            date=doc.metadata.get('date', "")
+        ))
         
         return memories
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @app.delete("/memories/{user_id}/{memory_id}")
 async def delete_memory(user_id: str, memory_id: str):
